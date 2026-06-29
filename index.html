@@ -201,6 +201,7 @@
   <button class="tab" onclick="tab('dividas',this)">Dívidas</button>
   <button class="tab" onclick="tab('receitas',this)">Receitas</button>
   <button class="tab" onclick="tab('calendario',this)">Calendário</button>
+  <button class="tab" onclick="tab('projecao',this)">Projeção Anual</button>
 </div>
 
 <!-- VISÃO GERAL -->
@@ -304,6 +305,28 @@
   </div>
 </div>
 
+<!-- PROJEÇÃO ANUAL -->
+<div id="projecao" class="painel">
+  <div class="kpi-grid">
+    <div class="kpi verm"><div class="kpi-label">Total · 6 meses</div><div class="kpi-valor" id="kp-total">—</div><div class="kpi-sub">Julho a Dezembro</div></div>
+    <div class="kpi rosa"><div class="kpi-label">Média Mensal</div><div class="kpi-valor" id="kp-media">—</div><div class="kpi-sub">Despesa média no período</div></div>
+    <div class="kpi verde"><div class="kpi-label">Menor Mês</div><div class="kpi-valor" id="kp-menor">—</div><div class="kpi-sub" id="kp-menor-mes">—</div></div>
+    <div class="kpi amarelo"><div class="kpi-label">Maior Mês</div><div class="kpi-valor" id="kp-maior">—</div><div class="kpi-sub" id="kp-maior-mes">—</div></div>
+  </div>
+  <div class="alerta azul">
+    <div class="alerta-icon">💡</div>
+    <div id="alerta-projecao-txt">Carregando análise...</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Despesas Previstas · Julho a Dezembro 2026</div>
+    <div class="chart-wrap" style="height:280px"><canvas id="cProjecao"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Detalhamento Mês a Mês</div>
+    <div class="item-lista" id="listaProjecao"></div>
+  </div>
+</div>
+
 <div class="footer">
   <span>Consultoria Financeira · Rhayane Bitarães</span>
   <span id="footerTxt">Dados via Google Sheets · Julho 2026</span>
@@ -321,7 +344,12 @@ const GIDS = {
   empInfinity: '1014773873',
   oportunidades:'176530458',
   confirmadas: '534255067',
-  recAnteriores:'1517555953'
+  recAnteriores:'1517555953',
+  despAgosto:  '1675585152',
+  despSetembro:'272104111',
+  despOutubro: '192713326',
+  despNovembro:'192942612',
+  despDezembro:'1671356336'
 };
 
 const R='#d4908a',G='#6dbfa0',Y='#d4b96b',V='#e07070',B='#7aaedc',BRD='#2a2a2a';
@@ -361,10 +389,12 @@ async function carregarDados(){
   charts={};
 
   try{
-    const [rDesp,rCasa,rCart,rMent,rENub,rEInf,rOport,rConf,rAnt] = await Promise.all([
+    const [rDesp,rCasa,rCart,rMent,rENub,rEInf,rOport,rConf,rAnt,rAgo,rSet,rOut,rNov,rDez] = await Promise.all([
       csv(GIDS.despTotal), csv(GIDS.despCasa), csv(GIDS.cartoes),
       csv(GIDS.mentoria), csv(GIDS.empNubank), csv(GIDS.empInfinity),
-      csv(GIDS.oportunidades), csv(GIDS.confirmadas), csv(GIDS.recAnteriores)
+      csv(GIDS.oportunidades), csv(GIDS.confirmadas), csv(GIDS.recAnteriores),
+      csv(GIDS.despAgosto), csv(GIDS.despSetembro), csv(GIDS.despOutubro),
+      csv(GIDS.despNovembro), csv(GIDS.despDezembro)
     ]);
 
     // ── DESPESAS TOTAIS ──
@@ -568,6 +598,26 @@ async function carregarDados(){
       [...comData,...semData].map(o=>`<div class="item"><div class="item-esq"><div class="item-nome">${o.nome}</div><div class="item-detalhe">${o.data||'Sem data definida'}</div></div><div style="display:flex;align-items:center;gap:8px"><span class="item-tag ${o.data?'tag-data':'tag-oport'}">${o.data||'EM ABERTO'}</span><span class="item-valor oport">${fmt(o.val)}</span></div></div>`).join('')
       +`<div class="item" style="border-top:1px solid var(--azul);padding-top:14px"><div class="item-nome" style="font-weight:600">Total Oportunidades</div><span class="item-valor oport" style="font-size:16px">${fmt(totalOport)}</span></div>`;
 
+    // ── PROJEÇÃO ANUAL (Jul-Dez) ──
+    function somarMes(rows){
+      let total=0;
+      for(const row of rows){
+        if(!row[1]||['Despesa','Total',''].includes(row[1])) continue;
+        const val=parseMoney(row[2]);
+        if(val>0) total+=val;
+      }
+      return total;
+    }
+    const projecao=[
+      {mes:'Julho',val:totalDesp},
+      {mes:'Agosto',val:somarMes(rAgo)},
+      {mes:'Setembro',val:somarMes(rSet)},
+      {mes:'Outubro',val:somarMes(rOut)},
+      {mes:'Novembro',val:somarMes(rNov)},
+      {mes:'Dezembro',val:somarMes(rDez)}
+    ];
+    preencherProjecao(projecao);
+
     // Calendário
     buildCal(oports, confs, itensDesp);
 
@@ -586,6 +636,64 @@ async function carregarDados(){
 
   document.getElementById('loadingScreen').classList.add('hidden');
   document.getElementById('app').style.display='block';
+}
+
+function preencherProjecao(projecao){
+  const total = projecao.reduce((a,p)=>a+p.val,0);
+  const media = total/projecao.length;
+  const menor = projecao.reduce((a,p)=>p.val<a.val?p:a);
+  const maior = projecao.reduce((a,p)=>p.val>a.val?p:a);
+
+  document.getElementById('kp-total').textContent=fmtK(total);
+  document.getElementById('kp-media').textContent=fmtK(media);
+  document.getElementById('kp-menor').textContent=fmtK(menor.val);
+  document.getElementById('kp-menor-mes').textContent=menor.mes;
+  document.getElementById('kp-maior').textContent=fmtK(maior.val);
+  document.getElementById('kp-maior-mes').textContent=maior.mes;
+
+  const diff = maior.val - menor.val;
+  document.getElementById('alerta-projecao-txt').innerHTML =
+    `<strong>Análise:</strong> ${maior.mes} é o mês mais pesado (${fmtK(maior.val)}), puxado pela mentoria e maiores parcelas de cartão. ${menor.mes} é o mais leve (${fmtK(menor.val)}). A diferença entre eles é de <strong>${fmtK(diff)}</strong> — vale reservar um colchão extra para os meses de pico.`;
+
+  // Lista detalhada
+  document.getElementById('listaProjecao').innerHTML = projecao.map(p=>{
+    const pct=(p.val/maior.val*100).toFixed(0);
+    const isMax = p.mes===maior.mes;
+    const isMin = p.mes===menor.mes;
+    const cor = isMax?V:(isMin?G:Y);
+    return `<div class="item"><div class="item-esq"><div class="item-nome">${p.mes} ${isMax?'🔴':isMin?'🟢':''}</div><div class="item-detalhe">${pct}% do mês mais caro</div></div><span class="item-valor" style="color:${cor}">${fmt(p.val)}</span></div>`;
+  }).join('');
+
+  // Gráfico
+  if(charts.projecao) charts.projecao.destroy();
+  charts.projecao = new Chart(document.getElementById('cProjecao'),{
+    type:'bar',
+    data:{
+      labels:projecao.map(p=>p.mes),
+      datasets:[{
+        label:'Despesa prevista',
+        data:projecao.map(p=>p.val),
+        backgroundColor:projecao.map(p=>p.mes===maior.mes?V+'55':p.mes===menor.mes?G+'55':Y+'44'),
+        borderColor:projecao.map(p=>p.mes===maior.mes?V:p.mes===menor.mes?G:Y),
+        borderWidth:1.5,
+        borderRadius:0
+      },{
+        label:'Média do período',
+        data:projecao.map(()=>media),
+        type:'line',
+        borderColor:B,
+        borderDash:[6,4],
+        backgroundColor:'transparent',
+        pointRadius:0,
+        tension:0
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{boxWidth:12,padding:16}},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
+      scales:{x:{grid:{color:BRD}},y:{grid:{color:BRD},ticks:{callback:v=>'R$'+(v/1000).toFixed(1)+'k'}}}
+    }
+  });
 }
 
 function buildCal(oports, confs, itensDesp){
