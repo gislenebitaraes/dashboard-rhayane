@@ -307,11 +307,16 @@
 
 <!-- PROJEÇÃO ANUAL -->
 <div id="projecao" class="painel">
-  <div class="kpi-grid">
-    <div class="kpi verm"><div class="kpi-label">Total · 6 meses</div><div class="kpi-valor" id="kp-total">—</div><div class="kpi-sub">Julho a Dezembro</div></div>
-    <div class="kpi rosa"><div class="kpi-label">Média Mensal</div><div class="kpi-valor" id="kp-media">—</div><div class="kpi-sub">Despesa média no período</div></div>
-    <div class="kpi verde"><div class="kpi-label">Menor Mês</div><div class="kpi-valor" id="kp-menor">—</div><div class="kpi-sub" id="kp-menor-mes">—</div></div>
-    <div class="kpi amarelo"><div class="kpi-label">Maior Mês</div><div class="kpi-valor" id="kp-maior">—</div><div class="kpi-sub" id="kp-maior-mes">—</div></div>
+  <div class="kpi-grid" style="grid-template-columns:1fr;margin-bottom:16px">
+    <div class="kpi rosa"><div class="kpi-label">Total Devido até Dezembro</div><div class="kpi-valor" id="kp-total" style="font-size:32px">—</div><div class="kpi-sub">Soma de Julho a Dezembro de 2026</div></div>
+  </div>
+  <div class="kpi-grid" style="grid-template-columns:repeat(6,1fr)">
+    <div class="kpi verm"><div class="kpi-label">Julho</div><div class="kpi-valor" id="kp-mes-0" style="font-size:18px">—</div></div>
+    <div class="kpi amarelo"><div class="kpi-label">Agosto</div><div class="kpi-valor" id="kp-mes-1" style="font-size:18px">—</div></div>
+    <div class="kpi verde"><div class="kpi-label">Setembro</div><div class="kpi-valor" id="kp-mes-2" style="font-size:18px">—</div></div>
+    <div class="kpi azul"><div class="kpi-label">Outubro</div><div class="kpi-valor" id="kp-mes-3" style="font-size:18px">—</div></div>
+    <div class="kpi rosa"><div class="kpi-label">Novembro</div><div class="kpi-valor" id="kp-mes-4" style="font-size:18px">—</div></div>
+    <div class="kpi verm"><div class="kpi-label">Dezembro</div><div class="kpi-valor" id="kp-mes-5" style="font-size:18px">—</div></div>
   </div>
   <div class="alerta azul">
     <div class="alerta-icon">💡</div>
@@ -640,16 +645,14 @@ async function carregarDados(){
 
 function preencherProjecao(projecao){
   const total = projecao.reduce((a,p)=>a+p.val,0);
-  const media = total/projecao.length;
-  const menor = projecao.reduce((a,p)=>p.val<a.val?p:a);
   const maior = projecao.reduce((a,p)=>p.val>a.val?p:a);
+  const menor = projecao.reduce((a,p)=>p.val<a.val?p:a);
 
   document.getElementById('kp-total').textContent=fmtK(total);
-  document.getElementById('kp-media').textContent=fmtK(media);
-  document.getElementById('kp-menor').textContent=fmtK(menor.val);
-  document.getElementById('kp-menor-mes').textContent=menor.mes;
-  document.getElementById('kp-maior').textContent=fmtK(maior.val);
-  document.getElementById('kp-maior-mes').textContent=maior.mes;
+  projecao.forEach((p,i)=>{
+    const el=document.getElementById('kp-mes-'+i);
+    if(el) el.textContent=fmtK(p.val);
+  });
 
   const diff = maior.val - menor.val;
   document.getElementById('alerta-projecao-txt').innerHTML =
