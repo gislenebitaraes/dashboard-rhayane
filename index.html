@@ -665,6 +665,7 @@ async function carregarDados(){
 
 function preencherProjecao(projecao){
   const total = projecao.reduce((a,p)=>a+p.val,0);
+  const media = total/projecao.length;
   const maior = projecao.reduce((a,p)=>p.val>a.val?p:a);
   const menor = projecao.reduce((a,p)=>p.val<a.val?p:a);
 
