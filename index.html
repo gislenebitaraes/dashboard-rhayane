@@ -326,6 +326,25 @@
     <div class="card-title">Despesas Previstas · Julho a Dezembro 2026</div>
     <div class="chart-wrap" style="height:280px"><canvas id="cProjecao"></canvas></div>
   </div>
+
+  <div class="card">
+    <div class="card-title">Composição por Categoria · Mês a Mês</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:4px" id="gridComposicao">
+      <div><div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px;text-align:center">Julho</div><div style="position:relative;height:180px"><canvas id="cComp0"></canvas></div></div>
+      <div><div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px;text-align:center">Agosto</div><div style="position:relative;height:180px"><canvas id="cComp1"></canvas></div></div>
+      <div><div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px;text-align:center">Setembro</div><div style="position:relative;height:180px"><canvas id="cComp2"></canvas></div></div>
+      <div><div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px;text-align:center">Outubro</div><div style="position:relative;height:180px"><canvas id="cComp3"></canvas></div></div>
+      <div><div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px;text-align:center">Novembro</div><div style="position:relative;height:180px"><canvas id="cComp4"></canvas></div></div>
+      <div><div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px;text-align:center">Dezembro</div><div style="position:relative;height:180px"><canvas id="cComp5"></canvas></div></div>
+    </div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:20px;font-size:11px;color:var(--text-muted);justify-content:center">
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:#6dbfa0;display:inline-block;border-radius:2px"></span>Casa e Moradia</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:#d4908a;display:inline-block;border-radius:2px"></span>Mentoria</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:#e07070;display:inline-block;border-radius:2px"></span>Cartões</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:#d4b96b;display:inline-block;border-radius:2px"></span>Empréstimos</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:#7aaedc;display:inline-block;border-radius:2px"></span>Desp. Clínica</span>
+    </div>
+  </div>
   <div class="card">
     <div class="card-title">Detalhamento Mês a Mês</div>
     <div class="item-lista" id="listaProjecao"></div>
@@ -622,6 +641,7 @@ async function carregarDados(){
       {mes:'Dezembro',val:somarMes(rDez)}
     ];
     preencherProjecao(projecao);
+    buildComposicaoCharts([rDesp,rAgo,rSet,rOut,rNov,rDez]);
 
     // Calendário
     buildCal(oports, confs, itensDesp);
@@ -696,6 +716,71 @@ function preencherProjecao(projecao){
       plugins:{legend:{labels:{boxWidth:12,padding:16}},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
       scales:{x:{grid:{color:BRD}},y:{grid:{color:BRD},ticks:{callback:v=>'R$'+(v/1000).toFixed(1)+'k'}}}
     }
+  });
+}
+
+function categorizarMes(rows){
+  const cats = {'Casa e Moradia':0,'Mentoria':0,'Cartões':0,'Empréstimos':0,'Desp. Clínica':0};
+  const casaMoradia = ['funcional','condomínio','luz','internet','aluguel','mercado','gasolina','farmácia'];
+  for(const row of rows){
+    if(!row[1]||['Despesa','Total','Vencimento',''].includes(row[1])) continue;
+    const val = parseMoney(row[2]);
+    if(val===0) continue;
+    const nome = row[1].toLowerCase();
+    if(casaMoradia.some(x=>nome.includes(x))) cats['Casa e Moradia']+=val;
+    else if(nome.includes('mentoria')) cats['Mentoria']+=val;
+    else if(nome.includes('cartão')) cats['Cartões']+=val;
+    else if(nome.includes('empréstimo')) cats['Empréstimos']+=val;
+    else if(nome.includes('clínica')||nome.includes('clinica')) cats['Desp. Clínica']+=val;
+    else cats['Casa e Moradia']+=val; // fallback
+  }
+  return cats;
+}
+
+function buildComposicaoCharts(projecaoRows){
+  const cores = {
+    'Casa e Moradia': G,
+    'Mentoria':       R,
+    'Cartões':        V,
+    'Empréstimos':    Y,
+    'Desp. Clínica':  B
+  };
+  const labels = Object.keys(cores);
+  const bgColors = labels.map(l=>cores[l]+'55');
+  const bdColors = labels.map(l=>cores[l]);
+
+  projecaoRows.forEach((rows, i)=>{
+    const cats = categorizarMes(rows);
+    const data = labels.map(l=>cats[l]||0);
+    const canvasId = 'cComp'+i;
+    if(charts['comp'+i]) charts['comp'+i].destroy();
+    charts['comp'+i] = new Chart(document.getElementById(canvasId),{
+      type:'doughnut',
+      data:{
+        labels,
+        datasets:[{
+          data,
+          backgroundColor:bgColors,
+          borderColor:bdColors,
+          borderWidth:1.5
+        }]
+      },
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        cutout:'60%',
+        plugins:{
+          legend:{display:false},
+          tooltip:{callbacks:{
+            label: c=>{
+              const total=c.dataset.data.reduce((a,b)=>a+b,0);
+              const pct=total>0?((c.raw/total)*100).toFixed(0):0;
+              return ` ${c.label}: ${fmt(c.raw)} (${pct}%)`;
+            }
+          }}
+        }
+      }
+    });
   });
 }
 
