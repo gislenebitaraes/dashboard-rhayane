@@ -640,8 +640,8 @@ async function carregarDados(){
       {mes:'Novembro',val:somarMes(rNov)},
       {mes:'Dezembro',val:somarMes(rDez)}
     ];
-    preencherProjecao(projecao);
-    buildComposicaoCharts([rDesp,rAgo,rSet,rOut,rNov,rDez]);
+    dadosProjecao = projecao;
+    rowsProjecao  = [rDesp,rAgo,rSet,rOut,rNov,rDez];
 
     // Calendário
     buildCal(oports, confs, itensDesp);
@@ -869,11 +869,19 @@ function buildCharts(totalDesp,totalConf,totalOport,totalCasa,totalMent,totalDiv
     options:opt()});
 }
 
+let dadosProjecao=null;
+let rowsProjecao=null;
+
 function tab(id,btn){
   document.querySelectorAll('.painel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   btn.classList.add('active');
+  // Renderizar gráficos de composição ao abrir a aba projeção
+  if(id==='projecao' && dadosProjecao && rowsProjecao){
+    preencherProjecao(dadosProjecao);
+    buildComposicaoCharts(rowsProjecao);
+  }
 }
 
 
